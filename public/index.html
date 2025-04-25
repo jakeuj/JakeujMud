@@ -92,7 +92,9 @@
       output.innerHTML += `<div style="color: yellow;">正在连接到 ${host}:${port}...</div>`;
       
       // 连接到websocket服务器，传递MUD服务器信息
-      ws = new WebSocket(`ws://${location.host}?host=${host}&port=${port}`);
+      // 自动检测是HTTP还是HTTPS，并相应使用ws或wss
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}?host=${host}&port=${port}`);
       
       ws.onopen = () => {
         input.disabled = false;

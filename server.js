@@ -6,8 +6,10 @@ const path = require('path');
 const url = require('url');
 
 const app = express();
-const server = app.listen(3000, () => {
-  console.log('HTTP & WS server running on http://localhost:3000');
+// 获取环境变量中的端口，如果不存在，则使用3000
+const port = process.env.PORT || 3000;
+const server = app.listen(port, () => {
+  console.log(`HTTP & WS server running on http://localhost:${port}`);
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
