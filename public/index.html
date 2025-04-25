@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MUD Web Client</title>
+  <title>MUD HTML 客戶端</title>
   <style>
     body { font-family: 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', 'Source Han Sans TC', monospace; background: #000; color: #0f0; padding: 10px; }
     #mud-output { white-space: pre-wrap; height: 70vh; overflow-y: auto; background: #111; padding: 10px; border: 1px solid #333; }
     #mud-input { width: 100%; padding: 10px; background: #222; color: #0f0; border: none; font-family: monospace; }
     #server-settings { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    #mud-host, #mud-port { padding: 5px; background: #222; color: #0f0; border: 1px solid #333; }
+    #mud-host, #mud-port, #mud-encoding { padding: 5px; background: #222; color: #0f0; border: 1px solid #333; }
     .btn { padding: 5px 10px; background: #333; color: #0f0; border: 1px solid #0f0; cursor: pointer; }
     .btn:hover { background: #444; }
     #server-list { padding: 5px; background: #222; color: #0f0; border: 1px solid #333; }
@@ -17,14 +17,28 @@
     #mudlist-link:hover { text-decoration: underline; }
     .dropdown-container { position: relative; display: inline-block; }
     .server-count { font-size: 0.8em; color: #0f0; margin-left: 5px; }
+    .help-icon { color: #0f0; cursor: pointer; margin-left: 5px; font-weight: bold; }
+    
+    /* 彈窗樣式 */
+    .popup { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); 
+            background: #111; border: 1px solid #0f0; padding: 20px; max-width: 500px; z-index: 100; }
+    .popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .popup-title { margin: 0; color: #0f0; }
+    .popup-close { color: #0f0; cursor: pointer; font-size: 24px; }
+    .popup-content { color: #0f0; }
+    .popup-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                    background: rgba(0,0,0,0.7); z-index: 99; }
+    .system-message { color: yellow; margin: 5px 0; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
 </head>
 <body>
   <div id="server-settings">
     <div class="dropdown-container">
-      <select id="server-list" aria-label="选择MUD服务器">
-        <option value="">--选择服务器--</option>
+      <select id="server-list" aria-label="選擇MUD伺服器">
+        <option value="">--選擇伺服器--</option>
+        <option value="mud.csie.org:3838">三國歪傳 yyy (mud.csie.org:3838)</option>
+        <option value="mud.revivalworld.org:4000">重生的世界 Revival World (mud.revivalworld.org:4000)</option>
         <option value="kk.muds.idv.tw:4000">萬王之王 King of Kings (kk.muds.idv.tw:4000)</option>
         <option value="210.59.236.38:7788">再戰江湖 The War In Field (210.59.236.38:7788)</option>
         <option value="doom.twmuds.com:4000">失落的國度 DOOM (doom.twmuds.com:4000)</option>
@@ -36,76 +50,186 @@
         <option value="hopto.mud.ren:4000">異想世界 Break World (hopto.mud.ren:4000)</option>
         <option value="jy.mud.com.tw:6666">金庸修真錄 Jin Yong Record (jy.mud.com.tw:6666)</option>
         <option value="us.muds.net:4000">東方故二天朝遊俠錄 The Celestial Empire (us.muds.net:4000)</option>
-        <option value="mud.csie.org:3838">三國歪傳 yyy (mud.csie.org:3838)</option>
-        <option value="mud.revivalworld.org:4000">重生的世界 Revival World (mud.revivalworld.org:4000)</option>
       </select>
-      <span class="server-count">共13个服务器</span>
+      <span class="server-count">共13個伺服器</span>
     </div>
-    <label for="mud-host">服务器:</label>
-    <input id="mud-host" type="text" value="kk.muds.idv.tw" />
+    <label for="mud-host">伺服器:</label>
+    <input id="mud-host" type="text" value="mud.csie.org" />
     <label for="mud-port">端口:</label>
-    <input id="mud-port" type="number" value="4000" />
-    <button id="connect-btn" class="btn">连接</button>
-    <a id="mudlist-link" href="https://www.revivalworld.org/mud/taiwanmudlist" target="_blank" rel="noopener noreferrer">台湾MUD列表</a>
+    <input id="mud-port" type="number" value="3838" />
+    <label for="mud-encoding">編碼:</label>
+    <select id="mud-encoding">
+      <option value="big5">Big5</option>
+      <option value="utf8">UTF-8</option>
+      <option value="gbk">GBK</option>
+    </select>
+    <span class="help-icon" id="help-btn" title="查看幫助">?</span>
+    <button id="connect-btn" class="btn">連接</button>
+    <a id="mudlist-link" href="https://www.revivalworld.org/mud/taiwanmudlist" target="_blank" rel="noopener noreferrer">台灣MUD列表</a>
   </div>
   <div id="mud-output"></div>
-  <input id="mud-input" type="text" placeholder="输入指令..." disabled />
+  <input id="mud-input" type="text" placeholder="輸入指令..." disabled />
+  
+  <!-- 幫助彈窗 -->
+  <div class="popup-backdrop" id="popup-backdrop"></div>
+  <div class="popup" id="help-popup">
+    <div class="popup-header">
+      <h3 class="popup-title">MUD客戶端使用幫助</h3>
+      <span class="popup-close" id="popup-close">&times;</span>
+    </div>
+    <div class="popup-content">
+      <p><strong>基本使用:</strong></p>
+      <ul>
+        <li>從下拉列表選擇伺服器或手動輸入伺服器地址和端口</li>
+        <li>選擇適合您MUD遊戲的字符編碼(默認Big5)</li>
+        <li>點擊"連接"按鈕開始遊戲</li>
+      </ul>
+      <p><strong>URL參數:</strong></p>
+      <ul>
+        <li>可以通過URL指定伺服器: <code>?host=伺服器&port=端口&encoding=編碼</code></li>
+        <li>例如: <code>?host=mud.csie.org&port=3838&encoding=big5</code></li>
+      </ul>
+      <p><strong>設置保存:</strong></p>
+      <ul>
+        <li>您的伺服器設置和編碼選擇會自動保存在瀏覽器中</li>
+        <li>下次訪問時會自動加載上次的設置</li>
+      </ul>
+      <p><strong>作者聯繫:</strong></p>
+      <ul>
+        <li><strong>郵箱：</strong> <a href="mailto:jakeuj@hotmail.com">jakeuj@hotmail.com</a></li>
+          <li><strong>GitHub：</strong> <a href="https://github.com/jakeuj/JakeujMud" target="_blank" rel="noopener noreferrer">jakeuj/JakeujMud</a></li>
+      </ul>
+    </div>
+  </div>
+  
   <script>
     const output = document.getElementById('mud-output');
     const input = document.getElementById('mud-input');
     const hostInput = document.getElementById('mud-host');
     const portInput = document.getElementById('mud-port');
+    const encodingSelect = document.getElementById('mud-encoding');
     const connectBtn = document.getElementById('connect-btn');
     const serverList = document.getElementById('server-list');
+    const helpBtn = document.getElementById('help-btn');
+    const helpPopup = document.getElementById('help-popup');
+    const popupBackdrop = document.getElementById('popup-backdrop');
+    const popupClose = document.getElementById('popup-close');
     
     let ws = null;
     const ansi_up = new AnsiUp();
     
-    // 从本地存储加载设置
-    function loadSettings() {
-      const savedHost = localStorage.getItem('mudHost');
-      const savedPort = localStorage.getItem('mudPort');
-      
-      if (savedHost) hostInput.value = savedHost;
-      if (savedPort) portInput.value = savedPort;
+    // 幫助彈窗控制
+    helpBtn.addEventListener('click', () => {
+      helpPopup.style.display = 'block';
+      popupBackdrop.style.display = 'block';
+    });
+    
+    popupClose.addEventListener('click', () => {
+      helpPopup.style.display = 'none';
+      popupBackdrop.style.display = 'none';
+    });
+    
+    popupBackdrop.addEventListener('click', () => {
+      helpPopup.style.display = 'none';
+      popupBackdrop.style.display = 'none';
+    });
+    
+    // 解析URL參數
+    function getUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        host: params.get('host'),
+        port: params.get('port'),
+        encoding: params.get('encoding')
+      };
     }
     
-    // 保存设置到本地存储
+    // 顯示系統消息
+    function showSystemMessage(message) {
+      output.innerHTML += `<div class="system-message">${message}</div>`;
+      output.scrollTop = output.scrollHeight;
+    }
+    
+    // 從本地存儲加載設置
+    function loadSettings() {
+      // 首先檢查URL參數
+      const urlParams = getUrlParams();
+      
+      // 然後檢查localStorage
+      const savedHost = localStorage.getItem('mudHost');
+      const savedPort = localStorage.getItem('mudPort');
+      const savedEncoding = localStorage.getItem('mudEncoding');
+      
+      // 優先使用URL參數，其次是localStorage，最後是默認值
+      if (urlParams.host) {
+        hostInput.value = urlParams.host;
+        showSystemMessage(`使用URL參數設置主機: ${urlParams.host}`);
+      } else if (savedHost) {
+        hostInput.value = savedHost;
+      }
+      
+      if (urlParams.port) {
+        portInput.value = urlParams.port;
+        showSystemMessage(`使用URL參數設置端口: ${urlParams.port}`);
+      } else if (savedPort) {
+        portInput.value = savedPort;
+      }
+      
+      if (urlParams.encoding) {
+        // 查找並設置編碼
+        const encodingOption = Array.from(encodingSelect.options).find(opt => opt.value === urlParams.encoding);
+        if (encodingOption) {
+          encodingSelect.value = urlParams.encoding;
+          showSystemMessage(`使用URL參數設置編碼: ${urlParams.encoding}`);
+        } else {
+          showSystemMessage(`不支持的編碼: ${urlParams.encoding}，使用默認編碼`);
+        }
+      } else if (savedEncoding) {
+        const encodingOption = Array.from(encodingSelect.options).find(opt => opt.value === savedEncoding);
+        if (encodingOption) {
+          encodingSelect.value = savedEncoding;
+        }
+      }
+    }
+    
+    // 保存設置到本地存儲
     function saveSettings() {
       localStorage.setItem('mudHost', hostInput.value);
       localStorage.setItem('mudPort', portInput.value);
+      localStorage.setItem('mudEncoding', encodingSelect.value);
     }
     
-    // 连接到MUD服务器
+    // 連接到MUD伺服器
     function connectToServer() {
       if (ws) {
         ws.close();
-        output.innerHTML += '<div style="color: yellow;">断开连接...</div>';
+        showSystemMessage('斷開連接...');
       }
       
       const host = hostInput.value;
       const port = portInput.value;
+      const encoding = encodingSelect.value;
       
-      // 保存设置
+      // 保存設置
       saveSettings();
       
-      output.innerHTML += `<div style="color: yellow;">正在连接到 ${host}:${port}...</div>`;
+      showSystemMessage(`正在連接到 ${host}:${port} (編碼: ${encoding})...`);
       
-      // 连接到websocket服务器，传递MUD服务器信息
-      // 自动检测是HTTP还是HTTPS，并相应使用ws或wss
+      // 連接到websocket伺服器，傳遞MUD伺服器信息
+      // 自動檢測是HTTP還是HTTPS，並相應使用ws或wss
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(`${protocol}//${location.host}?host=${host}&port=${port}`);
+      ws = new WebSocket(`${protocol}//${location.host}?host=${host}&port=${port}&encoding=${encoding}`);
       
       ws.onopen = () => {
         input.disabled = false;
         input.focus();
-        connectBtn.textContent = "断开";
+        connectBtn.textContent = "斷開";
       };
       
       ws.onclose = () => {
         input.disabled = true;
-        connectBtn.textContent = "连接";
-        output.innerHTML += '<div style="color: yellow;">连接已关闭</div>';
+        connectBtn.textContent = "連接";
+        showSystemMessage('連接已關閉');
       };
       
       ws.onmessage = (event) => {
@@ -115,13 +239,13 @@
       };
       
       ws.onerror = (error) => {
-        output.innerHTML += '<div style="color: red;">WebSocket连接错误</div>';
-        console.error('WebSocket连接错误:', error);
+        showSystemMessage('WebSocket連接錯誤');
+        console.error('WebSocket連接錯誤:', error);
         input.disabled = true;
       };
     }
     
-    // 处理服务器列表选择
+    // 處理伺服器列表選擇
     serverList.addEventListener('change', function() {
       if (this.value) {
         const [host, port] = this.value.split(':');
@@ -130,10 +254,10 @@
       }
     });
     
-    // 加载保存的设置
+    // 加載保存的設置
     loadSettings();
     
-    // 添加事件监听器
+    // 添加事件監聽器
     connectBtn.addEventListener('click', connectToServer);
     
     input.addEventListener('keydown', (e) => {

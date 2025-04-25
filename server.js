@@ -4,10 +4,11 @@ const iconv = require('iconv-lite');
 const express = require('express');
 const path = require('path');
 const url = require('url');
+const config = require('./config');
 
 const app = express();
-// 获取环境变量中的端口，如果不存在，则使用3000
-const port = process.env.PORT || 3000;
+// 從配置文件獲取端口
+const port = config.webServer.port;
 const server = app.listen(port, () => {
   console.log(`HTTP & WS server running on http://localhost:${port}`);
 });
@@ -16,19 +17,27 @@ app.use(express.static(path.join(__dirname, 'public')));
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', async (ws, req) => {
-  // 从URL查询参数获取MUD主机和端口
+  // 從URL查詢參數獲取MUD主機和端口
   const queryParams = url.parse(req.url, true).query;
-  const mudHost = queryParams.host || 'kk.muds.idv.tw';
-  const mudPort = parseInt(queryParams.port) || 4000;
+  const mudHost = queryParams.host || config.server.defaultHost;
+  const mudPort = parseInt(queryParams.port) || config.server.defaultPort;
+  // 獲取編碼設置
+  const encoding = queryParams.encoding || config.encoding.defaultEncoding;
   
-  console.log(`连接到MUD服务器: ${mudHost}:${mudPort}`);
+  // 驗證編碼是否支持
+  if (!config.encoding.supportedEncodings.includes(encoding)) {
+    ws.send(`不支援的編碼: ${encoding}，已使用預設編碼: ${config.encoding.defaultEncoding}`);
+    encoding = config.encoding.defaultEncoding;
+  }
+  
+  console.log(`連接到MUD伺服器: ${mudHost}:${mudPort} (編碼: ${encoding})`);
 
   const connection = new Telnet();
   const params = {
     host: mudHost, 
     port: mudPort,
     negotiationMandatory: false,
-    shellPrompt: '', // 让他不等待提示符
+    shellPrompt: '', // 讓它不等待提示符
     timeout: 5000,
     execTimeout: 2000,
     debug: false,
@@ -41,19 +50,19 @@ wss.on('connection', async (ws, req) => {
 
     connection.on('data', (buffer) => {
       const cleanBuffer = stripTelnetControlBytes(buffer);
-      const msg = iconv.decode(cleanBuffer, 'big5');
+      const msg = iconv.decode(cleanBuffer, encoding);
       ws.send(msg);
     });
 
     ws.on('message', (msg) => {
-      const encoded = iconv.encode(msg.toString(), 'big5');
+      const encoded = iconv.encode(msg.toString(), encoding);
       connection.send(encoded);
     });
 
     ws.on('close', () => connection.end());
   } catch (err) {
-    console.error('Telnet 连接失败：', err);
-    ws.send('连接失败，请稍后再试。');
+    console.error('Telnet 連接失敗：', err);
+    ws.send('連接失敗，請稍後再試。');
     ws.close();
   }
 });
