@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const iconv = require('iconv-lite');
 const express = require('express');
 const path = require('path');
+const url = require('url');
 
 const app = express();
 const server = app.listen(3000, () => {
@@ -12,13 +13,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const wss = new WebSocket.Server({ server });
 
-wss.on('connection', async (ws) => {
+wss.on('connection', async (ws, req) => {
+  // 从URL查询参数获取MUD主机和端口
+  const queryParams = url.parse(req.url, true).query;
+  const mudHost = queryParams.host || 'kk.muds.idv.tw';
+  const mudPort = parseInt(queryParams.port) || 4000;
+  
+  console.log(`连接到MUD服务器: ${mudHost}:${mudPort}`);
+
   const connection = new Telnet();
   const params = {
-    host: 'kk.muds.idv.tw', // 改成你的 MUD 主機
-    port: 4000,
+    host: mudHost, 
+    port: mudPort,
     negotiationMandatory: false,
-    shellPrompt: '', // 讓他不等待提示符
+    shellPrompt: '', // 让他不等待提示符
     timeout: 5000,
     execTimeout: 2000,
     debug: false,
@@ -42,8 +50,8 @@ wss.on('connection', async (ws) => {
 
     ws.on('close', () => connection.end());
   } catch (err) {
-    console.error('Telnet 連線失敗：', err);
-    ws.send('連線失敗，請稍後再試。');
+    console.error('Telnet 连接失败：', err);
+    ws.send('连接失败，请稍后再试。');
     ws.close();
   }
 });
