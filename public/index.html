@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MUD Web Client</title>
+  <style>
+    body { font-family: 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', 'Source Han Sans TC', monospace; background: #000; color: #0f0; padding: 10px; }
+    #mud-output { white-space: pre-wrap; height: 80vh; overflow-y: auto; background: #111; padding: 10px; border: 1px solid #333; }
+    #mud-input { width: 100%; padding: 10px; background: #222; color: #0f0; border: none; font-family: monospace; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+</head>
+<body>
+  <div id="mud-output"></div>
+  <input id="mud-input" type="text" placeholder="輸入指令..." />
+  <script>
+    const output = document.getElementById('mud-output');
+    const input = document.getElementById('mud-input');
+    const ws = new WebSocket(`ws://${location.host}`);
+
+    const ansi_up = new AnsiUp();
+    ws.onmessage = (event) => {
+      const html = ansi_up.ansi_to_html(event.data);
+      output.innerHTML += html;
+      output.scrollTop = output.scrollHeight;
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        ws.send(input.value + '\r\n');
+        input.value = '';
+      }
+    });
+  </script>
+</body>
+</html>
