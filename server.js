@@ -9,6 +9,12 @@ const config = require('./config');
 const app = express();
 // 從配置文件獲取端口
 const port = config.webServer.port;
+
+// 添加配置端點以提供給前端
+app.get('/config', (req, res) => {
+  res.json(config);
+});
+
 const server = app.listen(port, () => {
   console.log(`HTTP & WS server running on http://localhost:${port}`);
 });

@@ -4,10 +4,53 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MUD HTML 客戶端</title>
+  <script>
+    // 獲取服務器配置
+    let serverConfig = null;
+    fetch('/config')
+      .then(response => response.json())
+      .then(config => {
+        serverConfig = config;
+        applyStyles(config);
+      })
+      .catch(error => {
+        console.error('無法獲取配置:', error);
+        // 使用默認樣式
+        applyDefaultStyles();
+      });
+    
+    // 應用配置的樣式
+    function applyStyles(config) {
+      if (!config || !config.ui) return applyDefaultStyles();
+      
+      const styleEl = document.getElementById('dynamic-styles');
+      const fontFamily = config.ui.font.family || "'Courier New', monospace";
+      const fontSize = config.ui.font.size || '14px';
+      const lineHeight = config.ui.font.lineHeight || 1.2;
+      const outputPadding = config.ui.output.padding || '2px 5px';
+      
+      styleEl.textContent = `
+        body { font-family: ${fontFamily}; font-size: ${fontSize}; line-height: ${lineHeight}; }
+        #mud-output div { padding: ${outputPadding}; }
+      `;
+    }
+    
+    // 應用默認樣式
+    function applyDefaultStyles() {
+      const styleEl = document.getElementById('dynamic-styles');
+      styleEl.textContent = `
+        body { font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.2; }
+        #mud-output div { padding: 2px 5px; }
+      `;
+    }
+  </script>
+  <style id="dynamic-styles">
+    /* 動態樣式將通過JavaScript添加 */
+  </style>
   <style>
-    body { font-family: 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', 'Source Han Sans TC', monospace; background: #000; color: #0f0; padding: 10px; }
+    body { background: #000; color: #0f0; padding: 10px; margin: 0; }
     #mud-output { white-space: pre-wrap; height: 70vh; overflow-y: auto; background: #111; padding: 10px; border: 1px solid #333; }
-    #mud-input { width: 100%; padding: 10px; background: #222; color: #0f0; border: none; font-family: monospace; }
+    #mud-input { width: 100%; padding: 10px; background: #222; color: #0f0; border: none; }
     #server-settings { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     #mud-host, #mud-port, #mud-encoding { padding: 5px; background: #222; color: #0f0; border: 1px solid #333; }
     .btn { padding: 5px 10px; background: #333; color: #0f0; border: 1px solid #0f0; cursor: pointer; }
@@ -97,7 +140,7 @@
       <p><strong>作者聯繫:</strong></p>
       <ul>
         <li><strong>郵箱：</strong> <a href="mailto:jakeuj@hotmail.com">jakeuj@hotmail.com</a></li>
-          <li><strong>GitHub：</strong> <a href="https://github.com/jakeuj/JakeujMud" target="_blank" rel="noopener noreferrer">jakeuj/JakeujMud</a></li>
+        <li><strong>GitHub：</strong> <a href="https://github.com/jakeuj/JakeujMud" target="_blank" rel="noopener noreferrer">jakeuj/JakeujMud</a></li>
       </ul>
     </div>
   </div>
@@ -234,7 +277,8 @@
       
       ws.onmessage = (event) => {
         const html = ansi_up.ansi_to_html(event.data);
-        output.innerHTML += html;
+        // 將內容包裝在div中，以便應用行間距樣式
+        output.innerHTML += `<div>${html}</div>`;
         output.scrollTop = output.scrollHeight;
       };
       
